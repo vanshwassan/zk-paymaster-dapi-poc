@@ -26,13 +26,25 @@ The tutorial code is available [here](https://github.com/vanshwassan/zk-paymaste
 
 ## Set up the project
 
-1. Make an emptry project directory and clone the OG paymaster project:
+1. We're going to use zkSync CLI to set up an empty project. Install it globally:
 
 ```sh
-$ git clone https://github.com/matter-labs/custom-paymaster-tutorial.git .
+$ yarn add global zksync-cli@latest
 ```
 
-2. Add the project dependencies, including Hardhat, zkSync packages and API3 contracts:
+2. After installation, run the following command to create a new project:
+
+```sh
+$ yarn zksync-cli create paymaster-dapi
+```
+
+3. This will create a new zkSync project called `paymaster-dapi` with a basic Greeter contract. `cd` into the project directory:
+
+```sh
+$ cd paymaster-dapi
+```
+
+3. Add the project dependencies, including Hardhat, zkSync packages and API3 contracts:
 
 ```sh
 $ yarn add -D typescript ts-node ethers@^5.7.2 zksync-web3 hardhat @matterlabs/hardhat-zksync-solc @matterlabs/hardhat-zksync-deploy @matterlabs/zksync-contracts @openzeppelin/contracts @openzeppelin/contracts-upgradeable @api3/contracts dotenv
@@ -40,45 +52,45 @@ $ yarn add -D typescript ts-node ethers@^5.7.2 zksync-web3 hardhat @matterlabs/h
 
 ## Design
 
-The contract code defines an ERC20 token and allows it to be used to pay the fees for transactions. 
+For the sake of simplicity, we will use a modified OpenZeppelin ERC20 implementation. For that, we are going to code a basic ERC20 token `mockUSDC` which will be used to pay for the transactions.
 
-Here, we are naming it `mockUSDC` that will be used to pay for the transactions.
-
-We already have the `MyERC20.sol` token contract that will be used as `mockUSDC`
-
-1. `cd` to the `/contracts` directory and make a new `Greeting.sol` Contract:
-
-```sh
-$ code Greeting.sol
-```
-
-Add it in there
+1. Create a new contract `mockUSDC.sol` under `/contracts` directory and add the following code:
 
 ```solidity
-//SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: UNLICENSED
+
 pragma solidity ^0.8.8;
 
-contract Greeting {
-    string private greeting;
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-    constructor(string memory _greeting) {
-        greeting = _greeting;
+contract MyERC20 is ERC20 {
+    uint8 private _decimals;
+
+    constructor(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_
+    ) ERC20(name_, symbol_) {
+        _decimals = decimals_;
     }
 
-    function greet() public view returns (string memory) {
-        return greeting;
+    function mint(address _to, uint256 _amount) public returns (bool) {
+        _mint(_to, _amount);
+        return true;
     }
 
-    function setGreeting(string memory _greeting) public {
-        greeting = _greeting;
+    function decimals() public view override returns (uint8) {
+        return _decimals;
     }
 }
 ```
 
+Under contracts, you will find `Greeter.sol`. This is the contract that we will be using to test our paymaster to set a greeting message on-chain.
+
 ### Paymaster solidity contract
 
 
-3. Under `/contracts`, we will now edit `MyPaymaster.sol` to use dAPIs.
+2. We can now create our paymaster contract `MyPaymaster.sol` under `/contracts` directory. It is a custom implementation of the zkSync paymaster contract that uses dAPIs.
 
 - Add the following imports.
 
@@ -280,7 +292,7 @@ contract MyPaymaster is IPaymaster, Ownable {
 
 ## Compile and Deploy the Contracts
 
-The script below deploys the ERC20 (mockUSDC), greeting and the paymaster contracts. It also creates an empty wallet and mints some `mockUSDC` tokens for the paymaster to use at a later step. It also sends 0.05 eth to the paymaster contract so it can pay for the transactions. 
+The script below deploys the ERC20 (mockUSDC), greeting and the paymaster contracts. It also creates an empty wallet and mints some `mockUSDC` tokens for the paymaster to use at a later step. It also sends 0.05 eth to the paymaster contract so it can pay for the transactions.
 
 The script also calls the `setDapiProxy` to set the proxy addresses for the required dAPIs on-chain. It also sets the `greeting`.
 
